@@ -1,6 +1,6 @@
-const http = require('http')
-const fs= require('fs')
-const path = require('path')
+ const http = require('http')
+ const fs= require('fs')
+ const path = require('path')
 
    const server = http.createServer((req,res)=>{
    const url = req.url.split('?')[0]
@@ -27,7 +27,6 @@ const path = require('path')
         fs.readFile(path.join(__dirname, "users.json"), (err, data) => {
           if (err) throw err;
           const users = JSON.parse(data);
-
           const user = users.find((user)=>user.username === username);
           if(user){
               res.writeHead(409,{"Content-Type":"text/html"});
@@ -43,14 +42,32 @@ const path = require('path')
             username,
             password,
           });
-            
+          //secssion Cookise-create
+            const session = {
+                id:Math.floor(Math.random()*1000000000),
+                username,
+            }
+          fs.readFile(path.join(__dirname,"sessions.json"),(err,data)=>{
+            if(err)throw err;
+            const sessions = JSON.parse(data)
+            sessions.push(session)
+            fs.writeFile(
+              path.join(__dirname,"sessions.json"),
+              JSON.stringify(sessions),
+              (err)=>{
+               if(err) throw err;
+               //key values pirs session ids
+               res.writeHead(302,{location:"/", 'Set-Cookie':`sessionId=${session.id}`})
+               res.end()
+            })
+          })
+
             fs.writeFile(
                 path.join(__dirname, 'users.json'),
                 JSON.stringify(users),// Object To String Convert
                 (err)=>{
                     if(err)throw err;
-                    res.writeHead(201,{Location: "/"})
-                    res.end()
+                   
               }
             )  
          })
@@ -82,21 +99,64 @@ const path = require('path')
                  //The && (logical AND) operator indicates whether both operands are true
                  const user = users.find((user)=>user.username === username && user.password === password)
                  if(user){
-                    res.writeHead(200,{'Content-type':'text/html'})
-                    res.end('Login SuccesFully..!')
-                 }
-                 else{
+                  const session = {
+                    id: Math.floor(Math.random() * 1000000000),
+                    username,
+                  };
+                  fs.readFile(
+                    path.join(__dirname, "sessions.json"),
+                    (err, data) => {
+                      if (err) throw err;
+                      const sessions = JSON.parse(data);
+                      sessions.push(session);
+                      fs.writeFile(
+                        path.join(__dirname, "sessions.json"),
+                        JSON.stringify(sessions),
+                        (err) => {
+                          if (err) throw err;
+                          res.writeHead(302, {
+                            Location: "/",
+                            "Set-Cookie": `sessionId=${session.id}; HttpOnly`,
+                          });
+                          res.end();
+                        }
+                      );
+                    }
+                  ); 
+                  }else{
                     res.writeHead(401,{'Content-type': 'text/html'})
                     res.end('Login Failed')
                  }
              })
         })
    }else if(url==='/' && method === "GET"){
-    fs.readFile(path.join(__dirname,'Home.html'),(err,data)=>{
-       if(err) throw err;
-       res.writeHead(200,{'Content-Type':'text/html'})
-       res.end(data)
+    //Check Session
+    if(!req.headers.cookie){
+      res.writeHead(302, {Location: "/login"});
+      res.end();
+      return;
+    }
+    const sessionId = req.headers.cookie.split("=")[1]
+    fs.readFile(path.join(__dirname,"sessions.json"),(err,data)=>{
+      if(err)throw err;
+      const sessions = JSON.parse(data)
+      // sessionId check to Sessions using javascript find method(find used to searching)
+      const secssion = sessions.find(secssion=> secssion.id === Number(sessionId) )
+      console.log(secssion);
+      if(secssion){
+        fs.readFile(path.join(__dirname,'Home.html'),(err,data)=>{
+          if(err) throw err;
+          res.writeHead(200,{'Content-Type':'text/html'})
+          res.end(data)
+       })
+
+      }else{
+        //redirect To login
+        res.writeHead(302,{location:'/login'}) 
+      }
     })
+     
+ 
    }
 })
 
